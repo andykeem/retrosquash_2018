@@ -1,6 +1,5 @@
 package com.example.andyk.retrosquashgame;
 
-import android.app.Activity;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -33,10 +32,10 @@ public class GameView extends SurfaceView implements Runnable {
     protected int mDeviceWidth;
     protected int mDeviceHeight;
     protected float mBallDiameter;
-    protected boolean mBallDown;
-    protected boolean mBallLeft;
-    protected boolean mBallRight;
-    protected boolean mBallUp;
+    protected boolean mBallMoveDown;
+    protected boolean mBallMoveLeft;
+    protected boolean mBallMoveRight;
+    protected boolean mBallMoveUp;
     protected Paint mRacketPaint;
     protected float mRacketX;
     protected float mRacketY;
@@ -90,8 +89,8 @@ public class GameView extends SurfaceView implements Runnable {
         mBallX = (mDeviceWidth / 2);
         mBallY = 0;
 
-        mBallDown = true;
-        mBallRight = true;
+        mBallMoveDown = true;
+        mBallMoveRight = true;
 
         // racket init position
         mRacketX = (mDeviceWidth / 2) - (RACKET_WIDTH / 2);
@@ -109,25 +108,39 @@ public class GameView extends SurfaceView implements Runnable {
 
         int dx = 5;
         int dy = 5;
-        if ((mBallX + mBallDiameter) > mDeviceWidth) {
-            mBallRight = false;
-            mBallLeft = true;
+
+        // check ball with device border collition
+        float ballLeft = mBallX;
+        float ballTop = mBallY;
+        float ballRight = (mBallX + mBallDiameter);
+        float ballBottom = (mBallY + mBallDiameter);
+        if (ballRight > mDeviceWidth) {
+            mBallMoveRight = false;
+            mBallMoveLeft = true;
         } else if (mBallX <= 0) {
-            mBallLeft = false;
-            mBallRight = true;
+            mBallMoveLeft = false;
+            mBallMoveRight = true;
         }
-        if ((mBallY + mBallDiameter) > mDeviceHeight) {
-            mBallDown = false;
-            mBallUp = true;
+        if (ballBottom > mDeviceHeight) {
+            mBallMoveDown = false;
+            mBallMoveUp = true;
         } else if (mBallY <= 0) {
-            mBallUp = false;
-            mBallDown = true;
+            mBallMoveUp = false;
+            mBallMoveDown = true;
         }
 
-        if (mBallLeft) {
+        // check ball with racket collision
+        if ((mRacketTop < ballBottom) && (ballBottom < mRacketBottom)) {
+            if (((mRacketLeft < ballLeft) && (ballLeft < mRacketRight)) ||
+                ((mRacketLeft < ballRight) && (ballRight < mRacketRight))) {
+                mBallMoveUp = true;
+            }
+        }
+
+        if (mBallMoveLeft) {
             dx = -5;
         }
-        if (mBallUp) {
+        if (mBallMoveUp) {
             dy = -5;
         }
 
