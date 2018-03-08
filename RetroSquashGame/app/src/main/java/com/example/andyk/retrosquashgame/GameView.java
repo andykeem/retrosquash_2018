@@ -31,7 +31,6 @@ public class GameView extends SurfaceView implements Runnable {
     protected float mBallY;
     protected int mDeviceWidth;
     protected int mDeviceHeight;
-    protected float mBallDiameter;
     protected boolean mBallMoveDown;
     protected boolean mBallMoveLeft;
     protected boolean mBallMoveRight;
@@ -77,8 +76,6 @@ public class GameView extends SurfaceView implements Runnable {
         mRacketPaint.setColor(Color.rgb(255, 165, 0));
         mTask = new Thread(this);
 
-        mBallDiameter = (BALL_RADIUS * 2);
-
         WindowManager winMgr = (WindowManager) mContext.getSystemService(Context.WINDOW_SERVICE);
         Point outSize = new Point();
         winMgr.getDefaultDisplay().getSize(outSize);
@@ -112,8 +109,8 @@ public class GameView extends SurfaceView implements Runnable {
         // check ball with device border collition
         float ballLeft = mBallX;
         float ballTop = mBallY;
-        float ballRight = (mBallX + mBallDiameter);
-        float ballBottom = (mBallY + mBallDiameter);
+        float ballRight = (mBallX + BALL_RADIUS);
+        float ballBottom = (mBallY + BALL_RADIUS);
         if (ballRight > mDeviceWidth) {
             mBallMoveRight = false;
             mBallMoveLeft = true;
