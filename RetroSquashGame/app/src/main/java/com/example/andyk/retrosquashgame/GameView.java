@@ -5,21 +5,27 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Point;
+import android.graphics.PointF;
+import android.graphics.drawable.Drawable;
+import android.support.v4.content.ContextCompat;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.View;
 import android.view.WindowManager;
+import android.widget.ImageView;
 
 /**
  * Created by andyk on 3/5/18.
  */
 
-public class GameView extends SurfaceView implements Runnable {
+public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTouchListener {
 
     protected static final String TAG = GameView.class.getSimpleName();
     protected static final float BALL_RADIUS = 16f;
-    protected static final int RACKET_WIDTH = 160;
+//    protected static final int RACKET_WIDTH = 160;
     protected static final int RACKET_HEIGHT = 16;
 
     protected Context mContext;
@@ -35,6 +41,7 @@ public class GameView extends SurfaceView implements Runnable {
     protected boolean mBallMoveLeft;
     protected boolean mBallMoveRight;
     protected boolean mBallMoveUp;
+    protected int mRacketWidth;
     protected Paint mRacketPaint;
     protected float mRacketX;
     protected float mRacketY;
@@ -42,6 +49,7 @@ public class GameView extends SurfaceView implements Runnable {
     protected float mRacketTop;
     protected float mRacketRight;
     protected float mRacketBottom;
+    protected float mTouchX;
 
     public GameView(Context context) {
         super(context, null);
@@ -68,7 +76,30 @@ public class GameView extends SurfaceView implements Runnable {
         }
     }
 
+    @Override
+    public boolean onTouch(View v, MotionEvent event) {
+        mTouchX = event.getX();
+        int action = event.getAction();
+        switch (action) {
+            case MotionEvent.ACTION_DOWN:
+                mRacketLeft = mTouchX - (mRacketWidth / 2);
+                mRacketRight = (mRacketLeft + mRacketWidth);
+                break;
+            case MotionEvent.ACTION_CANCEL:
+                break;
+            case MotionEvent.ACTION_MOVE:
+                mRacketLeft = mTouchX - (mRacketWidth/ 2);
+                mRacketRight = (mRacketLeft + mRacketWidth);
+                break;
+            case MotionEvent.ACTION_UP:
+                break;
+        }
+        return true;
+    }
+
     protected void init() {
+
+        this.setOnTouchListener(this);
         mHolder = this.getHolder();
         mBallPaint = new Paint();
         mBallPaint.setColor(Color.GREEN);
@@ -90,13 +121,16 @@ public class GameView extends SurfaceView implements Runnable {
         mBallMoveRight = true;
 
         // racket init position
-        mRacketX = (mDeviceWidth / 2) - (RACKET_WIDTH / 2);
+        mRacketWidth = (mDeviceWidth / 6);
+        mRacketX = (mDeviceWidth / 2) - (mRacketWidth / 2);
         mRacketY = (mDeviceHeight - 200);
 
         mRacketLeft = mRacketX;
         mRacketTop = mRacketY;
-        mRacketRight = (mRacketX + RACKET_WIDTH);
+        mRacketRight = (mRacketX + mRacketWidth);
         mRacketBottom = (mRacketY + RACKET_HEIGHT);
+
+
 
         this.drawUI();
     }
@@ -108,7 +142,7 @@ public class GameView extends SurfaceView implements Runnable {
 
         // check ball with device border collition
         float ballLeft = mBallX;
-        float ballTop = mBallY;
+//        float ballTop = mBallY;
         float ballRight = (mBallX + BALL_RADIUS);
         float ballBottom = (mBallY + BALL_RADIUS);
         if (ballRight > mDeviceWidth) {
@@ -163,7 +197,6 @@ public class GameView extends SurfaceView implements Runnable {
         canvas.drawCircle(mBallX, mBallY, BALL_RADIUS, mBallPaint);
 
         // draw racket..
-
         canvas.drawRect(mRacketLeft, mRacketTop, mRacketRight, mRacketBottom, mRacketPaint);
 
         mHolder.unlockCanvasAndPost(canvas);
