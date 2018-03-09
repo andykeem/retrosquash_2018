@@ -25,7 +25,6 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
 
     protected static final String TAG = GameView.class.getSimpleName();
     protected static final float BALL_RADIUS = 16f;
-//    protected static final int RACKET_WIDTH = 160;
     protected static final int RACKET_HEIGHT = 16;
 
     protected Context mContext;
@@ -82,14 +81,12 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
         int action = event.getAction();
         switch (action) {
             case MotionEvent.ACTION_DOWN:
-                mRacketLeft = mTouchX - (mRacketWidth / 2);
-                mRacketRight = (mRacketLeft + mRacketWidth);
+                this.updateRacketPosition();
                 break;
             case MotionEvent.ACTION_CANCEL:
                 break;
             case MotionEvent.ACTION_MOVE:
-                mRacketLeft = mTouchX - (mRacketWidth/ 2);
-                mRacketRight = (mRacketLeft + mRacketWidth);
+                this.updateRacketPosition();
                 break;
             case MotionEvent.ACTION_UP:
                 break;
@@ -130,9 +127,18 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
         mRacketRight = (mRacketX + mRacketWidth);
         mRacketBottom = (mRacketY + RACKET_HEIGHT);
 
-
-
         this.drawUI();
+    }
+
+    protected void updateRacketPosition() {
+        mRacketLeft = mTouchX - (mRacketWidth / 2);
+        if (mRacketLeft < 0) {
+            mRacketLeft = 0;
+        }
+        mRacketRight = (mRacketLeft + mRacketWidth);
+        if (mRacketRight > mDeviceWidth) {
+            mRacketLeft = (mDeviceWidth - mRacketWidth);
+        }
     }
 
     protected void updateUI() {
