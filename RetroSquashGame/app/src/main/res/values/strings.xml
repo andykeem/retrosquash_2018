@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Retro Squash Game</string>
+    <string name="game_over_alert_title">Game Over</string>
+    <string name="game_over_alert_message">Do you wanna play again?</string>
 </resources>

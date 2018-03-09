@@ -1,6 +1,7 @@
 package com.example.andyk.retrosquashgame;
 
 import android.content.Context;
+import android.content.DialogInterface;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -8,6 +9,8 @@ import android.graphics.Point;
 import android.graphics.PointF;
 import android.graphics.drawable.Drawable;
 import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AlertDialog;
+import android.support.v7.app.AppCompatActivity;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -26,6 +29,9 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
     protected static final String TAG = GameView.class.getSimpleName();
     protected static final float BALL_RADIUS = 16f;
     protected static final int RACKET_HEIGHT = 16;
+    protected static final float TEXT_SIZE = 200f;
+    protected static final float TEXT_TOP = 240f;
+    protected static final int NUM_LIVES = 3;
 
     protected Context mContext;
     protected SurfaceHolder mHolder;
@@ -49,6 +55,11 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
     protected float mRacketRight;
     protected float mRacketBottom;
     protected float mTouchX;
+    protected int mLive;
+    protected int mScore;
+    protected Paint mTextPaint;
+    protected float mLiveTextLeft;
+    protected float mScoreTextLeft;
 
     public GameView(Context context) {
         super(context, null);
@@ -68,7 +79,7 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
             this.updateUI();
             this.drawUI();
             try {
-                Thread.sleep(2);
+                Thread.sleep(1);
             } catch (InterruptedException ie) {
                 Log.e(TAG, ie.getMessage(), ie);
             }
@@ -102,6 +113,10 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
         mBallPaint.setColor(Color.GREEN);
         mRacketPaint = new Paint();
         mRacketPaint.setColor(Color.rgb(255, 165, 0));
+        mTextPaint = new Paint();
+        mTextPaint.setColor(Color.GRAY);
+        mTextPaint.setTextSize(TEXT_SIZE);
+
         mTask = new Thread(this);
 
         WindowManager winMgr = (WindowManager) mContext.getSystemService(Context.WINDOW_SERVICE);
@@ -126,6 +141,10 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
         mRacketTop = mRacketY;
         mRacketRight = (mRacketX + mRacketWidth);
         mRacketBottom = (mRacketY + RACKET_HEIGHT);
+
+        mLive = NUM_LIVES;
+        mLiveTextLeft = 80f;
+        mScoreTextLeft = (mDeviceWidth - TEXT_SIZE);
 
         this.drawUI();
     }
@@ -159,8 +178,13 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
             mBallMoveRight = true;
         }
         if (ballBottom > mDeviceHeight) {
-            mBallMoveDown = false;
-            mBallMoveUp = true;
+//            mBallMoveDown = false;
+//            mBallMoveUp = true;
+            mLive--;
+            if (mLive <= 0) {
+                this.handleGameOver();
+            }
+            resetBacllPosition();
         } else if (mBallY <= 0) {
             mBallMoveUp = false;
             mBallMoveDown = true;
@@ -169,8 +193,9 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
         // check ball with racket collision
         if ((mRacketTop < ballBottom) && (ballBottom < mRacketBottom)) {
             if (((mRacketLeft < ballLeft) && (ballLeft < mRacketRight)) ||
-                ((mRacketLeft < ballRight) && (ballRight < mRacketRight))) {
+                    ((mRacketLeft < ballRight) && (ballRight < mRacketRight))) {
                 mBallMoveUp = true;
+                mScore++;
             }
         }
 
@@ -183,6 +208,10 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
 
         mBallX += dx;
         mBallY += dy;
+    }
+
+    protected void resetBacllPosition() {
+        mBallY = 0;
     }
 
     protected void drawUI() {
@@ -205,7 +234,56 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
         // draw racket..
         canvas.drawRect(mRacketLeft, mRacketTop, mRacketRight, mRacketBottom, mRacketPaint);
 
+        // draw live
+        canvas.drawText(String.valueOf(mLive), mLiveTextLeft, TEXT_TOP, mTextPaint);
+
+        // draw score
+        canvas.drawText(String.valueOf(mScore), mScoreTextLeft, TEXT_TOP, mTextPaint);
+
         mHolder.unlockCanvasAndPost(canvas);
+    }
+
+    protected void handleGameOver() {
+        this.pauseGame();
+        ((AppCompatActivity) mContext).runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                new AlertDialog.Builder(mContext)
+                        .setIcon(android.R.drawable.ic_dialog_alert)
+                        .setTitle(R.string.game_over_alert_title)
+                        .setMessage(R.string.game_over_alert_message)
+                        .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                restartGame();
+                                dialog.dismiss();
+                            }
+                        })
+                        .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+
+                                dialog.dismiss();
+                            }
+                        })
+                        .create()
+                        .show();
+            }
+        });
+    }
+
+    protected void resetLive() {
+        mLive = NUM_LIVES;
+    }
+
+    protected void resetScore() {
+        mScore = 0;
+    }
+
+    protected void restartGame() {
+        this.resetLive();
+        this.resetScore();
+        this.resumeGame();
     }
 
     public void startGame() {
