@@ -8,6 +8,7 @@ import android.graphics.Paint;
 import android.graphics.Point;
 import android.graphics.PointF;
 import android.graphics.drawable.Drawable;
+import android.os.Handler;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
@@ -20,6 +21,9 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.ImageView;
 
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
 /**
  * Created by andyk on 3/5/18.
  */
@@ -31,7 +35,7 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
     protected static final int RACKET_HEIGHT = 16;
     protected static final float TEXT_SIZE = 200f;
     protected static final float TEXT_TOP = 240f;
-    protected static final int NUM_LIVES = 3;
+    protected static final int NUM_LIVES = 1; // 3;
 
     protected Context mContext;
     protected SurfaceHolder mHolder;
@@ -177,15 +181,8 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
             mBallMoveLeft = false;
             mBallMoveRight = true;
         }
-        if (ballBottom > mDeviceHeight) {
-//            mBallMoveDown = false;
-//            mBallMoveUp = true;
-            mLive--;
-            if (mLive <= 0) {
-                this.handleGameOver();
-            }
-            resetBacllPosition();
-        } else if (mBallY <= 0) {
+
+        if (mBallY <= 0) {
             mBallMoveUp = false;
             mBallMoveDown = true;
         }
@@ -200,18 +197,26 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
         }
 
         if (mBallMoveLeft) {
-            dx = -5;
+            dx *= -1;
         }
         if (mBallMoveUp) {
-            dy = -5;
+            dy *= -1;
         }
 
         mBallX += dx;
         mBallY += dy;
+
+        if ((mBallY + BALL_RADIUS) >= mDeviceHeight) {
+            mLive--;
+            if (mLive <= 0) {
+                this.handleGameOver();
+            }
+            resetBacllPosition();
+        }
     }
 
     protected void resetBacllPosition() {
-        mBallY = 0;
+        mBallY -= BALL_RADIUS;
     }
 
     protected void drawUI() {
@@ -262,7 +267,6 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
                         .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
-
                                 dialog.dismiss();
                             }
                         })
@@ -283,11 +287,16 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
     protected void restartGame() {
         this.resetLive();
         this.resetScore();
-        this.resumeGame();
+        this.stopGame();
+        this.init();
+        this.startGame();
     }
 
     public void startGame() {
         mRunning = true;
+        if (mTask == null) {
+            mTask = new Thread();
+        }
         mTask.start();
     }
 
@@ -310,6 +319,8 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
                 mTask.join();
             } catch (InterruptedException ie) {
                 Log.e(TAG, ie.getMessage(), ie);
+            } finally {
+                mTask = null;
             }
         }
     }
