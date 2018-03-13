@@ -9,6 +9,7 @@ import android.graphics.Point;
 import android.graphics.PointF;
 import android.graphics.drawable.Drawable;
 import android.os.Handler;
+import android.os.Looper;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
@@ -33,9 +34,11 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
     protected static final String TAG = GameView.class.getSimpleName();
     protected static final float BALL_RADIUS = 16f;
     protected static final int RACKET_HEIGHT = 16;
-    protected static final float TEXT_SIZE = 200f;
-    protected static final float TEXT_TOP = 240f;
-    protected static final int NUM_LIVES = 1; // 3;
+    protected static final float TEXT_SIZE = 48f; // 200f;
+    protected static final float TEXT_TOP = 64f; // 240f;
+    protected static final float TEXT_LEFT = 8f;
+    protected static final int NUM_LIVES = 3;
+    protected static final int MILLIS_TO_SLEEP = 15; // 15 milliseconds
 
     protected Context mContext;
     protected SurfaceHolder mHolder;
@@ -59,11 +62,15 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
     protected float mRacketRight;
     protected float mRacketBottom;
     protected float mTouchX;
-    protected int mLive;
+    protected int mLives;
     protected int mScore;
     protected Paint mTextPaint;
-    protected float mLiveTextLeft;
     protected float mScoreTextLeft;
+    protected float mLiveTextLeft;
+    protected boolean mFinished;
+    protected float mUnitsToMove;
+    protected long mLastRunMillis;
+    protected int mFps;
 
     public GameView(Context context) {
         super(context, null);
@@ -82,11 +89,7 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
         while (mRunning) {
             this.updateUI();
             this.drawUI();
-            try {
-                Thread.sleep(1);
-            } catch (InterruptedException ie) {
-                Log.e(TAG, ie.getMessage(), ie);
-            }
+            this.controlFPS();
         }
     }
 
@@ -96,7 +99,7 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
         int action = event.getAction();
         switch (action) {
             case MotionEvent.ACTION_DOWN:
-                this.updateRacketPosition();
+//                this.updateRacketPosition();
                 break;
             case MotionEvent.ACTION_CANCEL:
                 break;
@@ -118,7 +121,7 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
         mRacketPaint = new Paint();
         mRacketPaint.setColor(Color.rgb(255, 165, 0));
         mTextPaint = new Paint();
-        mTextPaint.setColor(Color.GRAY);
+        mTextPaint.setColor(Color.WHITE);
         mTextPaint.setTextSize(TEXT_SIZE);
 
         mTask = new Thread(this);
@@ -131,7 +134,7 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
 
         // ball init position
         mBallX = (mDeviceWidth / 2);
-        mBallY = 0;
+        this.resetBacllPosition();
 
         mBallMoveDown = true;
         mBallMoveRight = true;
@@ -139,16 +142,16 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
         // racket init position
         mRacketWidth = (mDeviceWidth / 6);
         mRacketX = (mDeviceWidth / 2) - (mRacketWidth / 2);
-        mRacketY = (mDeviceHeight - 200);
+        mRacketY = (mDeviceHeight - (mDeviceHeight / 10));
 
         mRacketLeft = mRacketX;
         mRacketTop = mRacketY;
         mRacketRight = (mRacketX + mRacketWidth);
         mRacketBottom = (mRacketY + RACKET_HEIGHT);
 
-        mLive = NUM_LIVES;
-        mLiveTextLeft = 80f;
-        mScoreTextLeft = (mDeviceWidth - TEXT_SIZE);
+        mLives = NUM_LIVES;
+        mScoreTextLeft = 80f;
+        mLiveTextLeft = (mDeviceWidth - TEXT_SIZE);
 
         this.drawUI();
     }
@@ -166,8 +169,13 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
 
     protected void updateUI() {
 
-        int dx = 5;
-        int dy = 5;
+        mUnitsToMove = (mDeviceHeight / 150);
+        if (mBallMoveUp) {
+            mUnitsToMove += 5;
+        }
+
+        float dx = mUnitsToMove;
+        float dy = mUnitsToMove;
 
         // check ball with device border collition
         float ballLeft = mBallX;
@@ -207,19 +215,17 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
         mBallY += dy;
 
         if ((mBallY + BALL_RADIUS) >= mDeviceHeight) {
-            mLive--;
-            if (mLive <= 0) {
-                this.handleGameOver();
+            mLives--;
+            this.resetBacllPosition();
+            if (mLives <= 0) {
+                mFinished = true;
+                this.pauseGame();
             }
-            resetBacllPosition();
         }
     }
 
-    protected void resetBacllPosition() {
-        mBallY -= BALL_RADIUS;
-    }
-
     protected void drawUI() {
+
         if (mHolder == null) {
             return;
         }
@@ -239,45 +245,51 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
         // draw racket..
         canvas.drawRect(mRacketLeft, mRacketTop, mRacketRight, mRacketBottom, mRacketPaint);
 
-        // draw live
-        canvas.drawText(String.valueOf(mLive), mLiveTextLeft, TEXT_TOP, mTextPaint);
-
         // draw score
-        canvas.drawText(String.valueOf(mScore), mScoreTextLeft, TEXT_TOP, mTextPaint);
+//        canvas.drawText(String.valueOf(mScore), mScoreTextLeft, TEXT_TOP, mTextPaint);
+
+        // draw lives
+//        canvas.drawText(String.valueOf(mLives), mLiveTextLeft, TEXT_TOP, mTextPaint);
+
+        String info = String.format("Score: %d Lives: %d FPS: %d", mScore, mLives, mFps);
+
+        canvas.drawText(info, TEXT_LEFT, TEXT_TOP, mTextPaint);
 
         mHolder.unlockCanvasAndPost(canvas);
+
+        if (mFinished) {
+            this.handleGameOver();
+        }
+    }
+
+    protected void controlFPS() {
+        long elapsedMillis = (System.currentTimeMillis() - mLastRunMillis);
+        if (elapsedMillis > 0) {
+            mFps = (int) (1000 / elapsedMillis);
+        }
+        long millisToSleep = (MILLIS_TO_SLEEP - elapsedMillis);
+        if (millisToSleep > 0) {
+            try {
+                Thread.sleep(millisToSleep);
+            } catch (InterruptedException ie) {
+                Log.e(TAG, ie.getMessage(), ie);
+            }
+        }
+        mLastRunMillis = System.currentTimeMillis();
+    }
+
+    protected void resetBacllPosition() {
+        mBallY = (0 - BALL_RADIUS);
     }
 
     protected void handleGameOver() {
         this.pauseGame();
-        ((AppCompatActivity) mContext).runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                new AlertDialog.Builder(mContext)
-                        .setIcon(android.R.drawable.ic_dialog_alert)
-                        .setTitle(R.string.game_over_alert_title)
-                        .setMessage(R.string.game_over_alert_message)
-                        .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                restartGame();
-                                dialog.dismiss();
-                            }
-                        })
-                        .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                dialog.dismiss();
-                            }
-                        })
-                        .create()
-                        .show();
-            }
-        });
+        GameView.logThread();
+        this.showAlertDialog();
     }
 
     protected void resetLive() {
-        mLive = NUM_LIVES;
+        mLives = NUM_LIVES;
     }
 
     protected void resetScore() {
@@ -285,6 +297,8 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
     }
 
     protected void restartGame() {
+        GameView.logThread();
+        mFinished = false;
         this.resetLive();
         this.resetScore();
         this.stopGame();
@@ -323,5 +337,42 @@ public class GameView extends SurfaceView implements Runnable, SurfaceView.OnTou
                 mTask = null;
             }
         }
+    }
+
+    protected void showAlertDialog() {
+        ((AppCompatActivity) mContext).runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                new AlertDialog.Builder(mContext)
+                        .setIcon(android.R.drawable.ic_dialog_alert)
+                        .setTitle(R.string.game_over_alert_title)
+                        .setMessage(R.string.game_over_alert_message)
+                        .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                restartGame();
+                                dialog.dismiss();
+                            }
+                        })
+                        .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                ((AppCompatActivity) mContext).finish();
+                                dialog.dismiss();
+                            }
+                        })
+                        .create()
+                        .show();
+            }
+        });
+    }
+
+    protected void log(Object val, String text) {
+        String s = text + val;
+        Log.d(TAG, s);
+    }
+
+    public static void logThread() {
+        Log.d(TAG, "curr thread: " + Thread.currentThread().getName());
     }
 }
